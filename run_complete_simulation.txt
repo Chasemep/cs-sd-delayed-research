@@ -1,0 +1,4 @@
+% MATLAB command to run the entire Comparative Cucker-Smale Simulation
+% Copy and paste the following line into the MATLAB Command Window:
+
+run_simulation([5+rand(1,5), 15+rand(1,5)], [10+rand(1,10)], [10+rand(1,10)], [ones(1,5)*1, ones(1,5)*-1], [zeros(1,10)], [zeros(1,10)], 0.5, 0.05*rand(10,10), 0.01, 0.3, 0.4, 0.1)
