@@ -33,12 +33,13 @@ end
 % Adaptive simulation loop
 k = 2;
 max_iterations = 10000;
-converged = false;
+k_limit = max_iterations;
+consensus_reached = false;
 convergence_window = 10;
 convergence_threshold = convergence_thresh;
 variance_threshold = convergence_thresh;
 
-while k <= max_iterations && ~converged
+while k <= k_limit
     % Euler step
     for i = 1:N
        x(i,k+1) = x(i,k) + h*vx(i,k); 
@@ -70,7 +71,7 @@ while k <= max_iterations && ~converged
         fprintf('Iteration %d, t = %.2f...\n', k, t(k));
     end
     
-    if k >= convergence_window + 1
+    if ~consensus_reached && k >= convergence_window + 1
         if mod(k, 5) == 0
             recent_vx = vx(:, k-convergence_window+1:k+1);
             recent_vy = vy(:, k-convergence_window+1:k+1);
@@ -85,15 +86,18 @@ while k <= max_iterations && ~converged
             if (vx_change_max < stability_limit) && ...
                (vy_change_max < stability_limit) && ...
                (vz_change_max < stability_limit)
-                converged = true;
-                fprintf('Global stability reached at t=%.2f (step %d)\n', t(k+1), k+1);
+                consensus_reached = true;
+                fprintf('[Fixed-Delay] Global stability reached at t=%.2f (step %d)\n', t(k+1), k+1);
                 
                 if var(vx(:, k+1)) > variance_threshold
-                    fprintf('Multi-flocking detected.\n');
+                    fprintf('[Fixed-Delay] Multi-flocking detected.\n');
                 else
-                    fprintf('Single flock consensus reached.\n');
+                    fprintf('[Fixed-Delay] Single flock consensus reached.\n');
                 end
-                break;
+                
+                % Extend simulation for more frames (double the time to reach consensus)
+                k_limit = min(max_iterations, k + k);
+                fprintf('[Fixed-Delay] Continuing simulation until step %d for extended visualization.\n', k_limit);
             end
         end
     end

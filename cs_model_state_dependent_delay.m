@@ -31,11 +31,12 @@ end
 % Adaptive simulation loop
 k = 2;
 max_iterations = 10000;
-converged = false;
+k_limit = max_iterations;
+consensus_reached = false;
 convergence_window = 10;
 variance_threshold = convergence_thresh;
 
-while k <= max_iterations && ~converged
+while k <= k_limit
     % Euler step for positions
     for i = 1:N
        x(i,k+1) = x(i,k) + h*vx(i,k); 
@@ -98,15 +99,18 @@ while k <= max_iterations && ~converged
     end
     
     % Convergence check
-    if k >= convergence_window + 1
+    if ~consensus_reached && k >= convergence_window + 1
         if mod(k, 5) == 0
             recent_vx = vx(:, k-convergence_window+1:k+1);
             vx_change_max = max(abs(diff(recent_vx, 1, 2)), [], 'all');
             
             if vx_change_max < (convergence_thresh / 5)
-                converged = true;
-                fprintf('State-dependent consensus stability reached at t=%.2f\n', t(k+1));
-                break;
+                consensus_reached = true;
+                fprintf('[SD-Delay] State-dependent consensus stability reached at t=%.2f\n', t(k+1));
+                
+                % Extend simulation for more frames (double the time to reach consensus)
+                k_limit = min(max_iterations, k + k);
+                fprintf('[SD-Delay] Continuing simulation until step %d for extended visualization.\n', k_limit);
             end
         end
     end

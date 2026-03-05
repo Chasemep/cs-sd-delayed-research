@@ -22,12 +22,13 @@ vx(:,1) = vx0; vy(:,1) = vy0; vz(:,1) = vz0;
 % Adaptive simulation loop
 k = 1;
 max_iterations = 10000;
-converged = false;
+k_limit = max_iterations;
+consensus_reached = false;
 convergence_window = 10;
 convergence_threshold = convergence_thresh;
 variance_threshold = convergence_thresh;
 
-while k < max_iterations && ~converged
+while k < k_limit
     % 1. Spatial Update (Euler)
     x(:,k+1) = x(:,k) + h*vx(:,k); 
     y(:,k+1) = y(:,k) + h*vy(:,k);
@@ -55,7 +56,7 @@ while k < max_iterations && ~converged
     end
     
     % Check for convergence
-    if k >= convergence_window
+    if ~consensus_reached && k >= convergence_window
         if mod(k, 5) == 0
             recent_vx = vx(:, k-convergence_window+1:k+1);
             recent_vy = vy(:, k-convergence_window+1:k+1);
@@ -70,9 +71,12 @@ while k < max_iterations && ~converged
             if (vx_change_max < stability_limit) && ...
                (vy_change_max < stability_limit) && ...
                (vz_change_max < stability_limit)
-                converged = true;
+                consensus_reached = true;
                 fprintf('[No-Delay] Global stability reached at t=%.2f (step %d)\n', t(k+1), k+1);
-                break;
+                
+                % Extend simulation for more frames (double the time to reach consensus)
+                k_limit = min(max_iterations, k + k);
+                fprintf('[No-Delay] Continuing simulation until step %d for extended visualization.\n', k_limit);
             end
         end
     end
