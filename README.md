@@ -13,6 +13,7 @@ In the standard model, agents respond instantaneously to the states of their nei
 $$\frac{d\mathbf{v}_i(t)}{dt} = \frac{\alpha}{N} \sum_{j=1}^{N} \psi(\Vert \mathbf{x}_j(t) - \mathbf{x}_i(t) \Vert) (\mathbf{v}_j(t) - \mathbf{v}_i(t))$$
 
 where the communication weight (influence function) is:
+
 $$\psi(r) = \frac{1}{(1 + r^2)^{\beta}}$$
 
 ### 2. Cucker-Smale with Fixed Delay
@@ -26,6 +27,7 @@ In this advanced variation, the delay $\tau_{ij}$ is not constant but depends on
 $$\tau_{ij}(t) = \tau_{factor} \cdot \Vert \mathbf{x}_j(t) - \mathbf{x}_i(t) \Vert$$
 
 The velocity update follows:
+
 $$\frac{d\mathbf{v}_i(t)}{dt} = \frac{\alpha}{N} \sum_{j=1}^{N} \psi(\Vert \mathbf{x}_j(t-\tau_{ij}(t)) - \mathbf{x}_i(t) \Vert) (\mathbf{v}_j(t-\tau_{ij}(t)) - \mathbf{v}_i(t))$$
 
 ## Variable Definitions
