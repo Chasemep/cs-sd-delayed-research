@@ -44,4 +44,7 @@ if exist(python_script, 'file')
         end
     end
 end
+
+% 7. Generate Markdown Summary
+generate_simulation_markdown(output_dir, 'fixed_delay', length(x0), h, alpha, beta, tau(1), convergence_thresh);
 end

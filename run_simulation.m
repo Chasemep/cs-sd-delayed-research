@@ -50,5 +50,9 @@ if exist(python_script, 'file')
     end
 end
 
+% 5. Generate Markdown Summary
+delay_vals = [tau(1), tau_factor];
+generate_simulation_markdown(output_dir, 'comparison', length(x0), h, alpha, beta, delay_vals, convergence_thresh);
+
 fprintf('Comparative Simulation Complete.\nResults saved in: %s\n', output_dir);
 end
