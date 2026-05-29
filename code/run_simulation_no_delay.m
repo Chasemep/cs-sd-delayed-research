@@ -1,13 +1,27 @@
 function run_simulation_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh, output_dir)
 % RUN_SIMULATION_NO_DELAY Orchestrator for Standard Cucker-Smale simulation.
 
-% 1. Run the model
+% 1. Add script directory to path and determine Project Root
+script_dir = fileparts(mfilename('fullpath'));
+if isempty(script_dir)
+    script_dir = pwd;
+end
+addpath(script_dir);
+
+[parent_dir, last_dir] = fileparts(script_dir);
+if strcmp(last_dir, 'code')
+    project_root = parent_dir;
+else
+    project_root = script_dir;
+end
+
+% 1.5 Run the model
 results = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh);
 
 % 2. Handle Output Directory (if not provided by master)
 if nargin < 11 || isempty(output_dir)
     t_str = datestr(datetime('now'), 'dd-mmm-yyyy HH-MM-SS');
-    output_dir = fullfile(pwd, 'output', strcat('sim_no_delay_', regexprep(t_str, '[: ]', '_')));
+    output_dir = fullfile(project_root, 'output', strcat('sim_no_delay_', regexprep(t_str, '[: ]', '_')));
     if ~exist(output_dir, 'dir'), mkdir(output_dir); end
 end
 
@@ -32,7 +46,7 @@ generate_simulation_video(csv_path, output_dir);
 movefile(fullfile(output_dir, 'simulation_video.avi'), fullfile(output_dir, 'simulation_video_no_delay.avi'));
 
 % 6. Automate PCA Visualization
-python_script = 'visualize_pca.py';
+python_script = fullfile(script_dir, 'visualize_pca.py');
 if exist(python_script, 'file')
     py_commands = {'python', 'python3', 'py'};
     for i = 1:length(py_commands)

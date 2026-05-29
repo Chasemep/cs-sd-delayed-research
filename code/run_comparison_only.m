@@ -2,10 +2,25 @@ function run_comparison_only(x0, y0, z0, vx0, vy0, vz0, h, tau, tau_factor, alph
 % RUN_COMPARISON_ONLY Streamlined orchestrator for Comparative Cucker-Smale Research.
 % focus: Comparative results only (CSV, Video, PCA). Skips individual model videos/plots.
 
-% 1. Create a Shared Output Directory
+% 1. Add script directory to path and determine Project Root
+script_dir = fileparts(mfilename('fullpath'));
+if isempty(script_dir)
+    script_dir = pwd;
+end
+addpath(script_dir);
+
+[parent_dir, last_dir] = fileparts(script_dir);
+if strcmp(last_dir, 'code')
+    project_root = parent_dir;
+else
+    project_root = script_dir;
+end
+
 t_str = datestr(datetime('now'), 'dd-mmm-yyyy HH-MM-SS');
-output_dir = fullfile(pwd, 'output', strcat('comp_only_', regexprep(t_str, '[: ]', '_')));
-if ~exist(output_dir, 'dir'), mkdir(output_dir); end
+output_dir = fullfile(project_root, 'output', strcat('comp_only_', regexprep(t_str, '[: ]', '_')));
+if ~exist(output_dir, 'dir')
+    mkdir(output_dir);
+end
 
 fprintf('Starting Streamlined Comparison in: %s\n', output_dir);
 
@@ -42,7 +57,7 @@ if exist('generate_comparison_video.m', 'file')
     generate_comparison_video(output_dir);
 end
 
-python_script = 'compare_pca.py';
+python_script = fullfile(script_dir, 'compare_pca.py');
 if exist(python_script, 'file')
     fprintf('--- Generating Comparison PCA Plot ---\n');
     py_commands = {'python', 'python3', 'py'};

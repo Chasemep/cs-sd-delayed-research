@@ -46,25 +46,34 @@ $$\frac{d\mathbf{v}_i(t)}{dt} = \frac{\alpha}{N} \sum_{j=1}^{N} \psi(\Vert \math
 
 ## Project Structure
 
-### Core Models (`.m` files)
-- `cs_model_no_delay.m`: Standard Cucker-Smale simulation logic.
-- `cs_model_fixed_delay.m`: Simulation with constant user-defined delays.
-- `cs_model_state_dependent_delay.m`: Simulation where delay is proportional to agent distance.
+All source code files are located in the `code/` directory:
+
+### Core Models (`code/` folder)
+- `code/cs_model_no_delay.m`: Standard Cucker-Smale simulation logic.
+- `code/cs_model_fixed_delay.m`: Simulation with constant user-defined delays.
+- `code/cs_model_state_dependent_delay.m`: Simulation where delay is proportional to agent distance.
 
 ### Runner Scripts
-- `run_simulation_no_delay.m`: Entry point for standard simulation.
-- `run_simulation_fixed_delay.m`: Entry point for fixed delay simulation.
-- `run_simulation_state_dependent_delay.m`: Entry point for SD-delay simulation.
-- `run_comparison_only.m`: Runs all three models and produces comparative data.
+- `code/run_simulation_no_delay.m`: Entry point for standard simulation.
+- `code/run_simulation_fixed_delay.m`: Entry point for fixed delay simulation.
+- `code/run_simulation_state_dependent_delay.m`: Entry point for SD-delay simulation.
+- `code/run_comparison_only.m`: Runs all three models and produces comparative data.
 
 ### Visualization & Analysis
-- `generate_simulation_video.m`: Create animations of the flocking behavior.
-- `visualize_pca.py`: Python script for Principal Component Analysis on the results.
-- `compare_pca.py`: Compares PCA results across different delay scenarios.
+- `code/generate_simulation_video.m`: Create animations of the flocking behavior.
+- `code/visualize_pca.py`: Python script for Principal Component Analysis on the results.
+- `code/compare_pca.py`: Compares PCA results across different delay scenarios.
 
 ## Usage
 
-The primary entry point for conducting comparative research is the `run_comparison_only.m` script. This orchestrator runs all three model variations (No-Delay, Fixed-Delay, and State-Dependent Delay) and automatically generates comparative CSV data, a side-by-side comparison video, and a PCA stability analysis.
+The primary entry point for conducting comparative research is the `run_comparison_only.m` script (located in the `code/` folder). 
+
+To run the simulation:
+1. Open MATLAB and either set your current working directory to `code/`, or add the `code/` directory to your MATLAB search path:
+   ```matlab
+   addpath('code')
+   ```
+2. Call the orchestrator scripts directly. They run all model variations (No-Delay, Fixed-Delay, and State-Dependent Delay) and automatically write results to the top-level `output/` directory (not inside `code/`).
 
 ### Function Signature
 ```matlab
@@ -109,5 +118,5 @@ run_comparison_only(x, y, z, vx, vy, vz, h, tau, tau_factor, alpha, beta, thresh
 ### Post-Simulation Analysis
 Once the simulation completes:
 1. View the comparison video in the generated `output/comp_only_...` directory.
-2. Run `compare_pca.py` (automatically called by MATLAB) to see the stability plot.
+2. Run `code/compare_pca.py` (automatically called by MATLAB) to see the stability plot.
 3. Access individual agent logs in the `.csv` files for further statistical analysis.
