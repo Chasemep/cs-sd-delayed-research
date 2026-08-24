@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cucker-Smale 3D Bird Flocking Visualizer</title>
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- FontAwesome Icons via CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Three.js & OrbitControls via CDN with fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <!-- Local Fallbacks if CDN offline -->
+  <script>
+    if (typeof THREE === 'undefined') {
+      document.write('<script src="js/lib/three.min.js"><\/script>');
+    }
+  </script>
+  <script>
+    if (typeof THREE !== 'undefined' && typeof THREE.OrbitControls === 'undefined') {
+      document.write('<script src="js/lib/OrbitControls.js"><\/script>');
+    }
+  </script>
+</head>
+<body>
+
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Header Navbar -->
+  <header class="glass-panel">
+    <div class="brand">
+      <div class="brand-icon"><i class="fa-solid fa-feather-pointed"></i></div>
+      <div class="brand-title">3D Bird Flocking Visualizer</div>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-icon" id="btn-toggle-drawer">
+        <i class="fa-solid fa-folder-tree"></i> Scenarios
+      </button>
+      <button class="btn-icon" id="btn-toggle-camera">
+        <i class="fa-solid fa-video"></i> <span id="camera-mode-text">Orbit Camera</span>
+      </button>
+      <button class="btn-icon" id="btn-toggle-trails">
+        <i class="fa-solid fa-ribbon"></i> Trails
+      </button>
+      <button class="btn-icon" id="btn-hotkeys">
+        <i class="fa-solid fa-keyboard"></i> Hotkeys (H)
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar Drawer: Scenario Browser -->
+  <aside id="sidebar" class="glass-panel">
+    <div class="sidebar-header">
+      <div class="sidebar-title"><i class="fa-solid fa-diagram-project"></i> Output Scenarios</div>
+      <button class="btn-icon" id="btn-close-drawer" style="padding: 4px 8px;">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="sidebar-content" id="scenario-tree">
+      <div style="padding: 20px; text-align: center; color: var(--text-muted);">
+        <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+        <p style="margin-top: 10px;">Scanning output folder...</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Telemetry HUD Panel -->
+  <div id="hud-panel" class="glass-panel">
+    <div class="hud-group">
+      <div class="hud-label">Active Scenario & Model</div>
+      <div class="hud-value" id="hud-scenario-name" style="font-size: 16px;">No Scenario Selected</div>
+      <div id="hud-model-name" style="font-size: 12px; color: var(--accent-purple); font-weight: 600;">-</div>
+    </div>
+
+    <div class="hud-grid">
+      <div class="hud-card">
+        <div class="hud-label">Birds (N)</div>
+        <div class="card-val" id="hud-agent-count">0</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Time Step (h)</div>
+        <div class="card-val" id="hud-time-step">0.50 s</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Flock Mean Speed</div>
+        <div class="card-val" id="hud-mean-speed" style="color: var(--accent-amber);">0.00</div>
+      </div>
+      <div class="hud-card">
+        <div class="hud-label">Velocity Variance</div>
+        <div class="card-val" id="hud-dispersion">0.0000</div>
+      </div>
+    </div>
+
+    <div class="hud-card" style="margin-top: 4px;">
+      <div class="hud-label">Convergence Status</div>
+      <div class="card-val" id="hud-conv-status" style="font-size: 13px; color: var(--accent-emerald);">
+        Checking...
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Playback Control Toolbar -->
+  <div id="control-bar" class="glass-panel">
+    <div class="playback-controls">
+      <button class="btn-ctrl" id="btn-reset" title="Reset Time (R)">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+      <button class="btn-ctrl" id="btn-step-back" title="Step Back (Left Arrow / A)">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button class="btn-ctrl primary" id="btn-play-pause" title="Play / Pause (Space / K)">
+        <i class="fa-solid fa-play" id="play-icon"></i>
+      </button>
+      <button class="btn-ctrl" id="btn-step-forward" title="Step Forward (Right Arrow / D)">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+    </div>
+
+    <div class="timeline-container">
+      <span class="time-stamp" id="time-current">0.00s</span>
+      <input type="range" id="time-scrubber" min="0" max="100" value="0" step="1">
+      <span class="time-stamp" id="time-total">0.00s</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 12px; color: var(--text-muted);">Speed:</span>
+      <select class="speed-select" id="speed-select">
+        <option value="0.25">0.25x</option>
+        <option value="0.5">0.5x</option>
+        <option value="1" selected>1.0x</option>
+        <option value="2">2.0x</option>
+        <option value="4">4.0x</option>
+        <option value="8">8.0x</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Hotkey Overlay Modal -->
+  <div class="modal-overlay" id="hotkeys-modal">
+    <div class="modal-box glass-panel">
+      <div class="modal-header">
+        <div class="modal-title"><i class="fa-solid fa-keyboard"></i> Keyboard Shortcuts</div>
+        <button class="btn-icon" id="btn-close-modal" style="padding: 4px 8px;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="hotkey-list">
+        <div class="hotkey-item">
+          <span>Play / Pause Simulation</span>
+          <span class="key-badge">Space</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Reset Time to Start</span>
+          <span class="key-badge">R</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Step Backward 1 Step / -1s</span>
+          <span class="key-badge">← / A</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Step Forward 1 Step / +1s</span>
+          <span class="key-badge">→ / D</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Increase Playback Speed</span>
+          <span class="key-badge">↑ / W</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Decrease Playback Speed</span>
+          <span class="key-badge">↓ / S</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Toggle Camera Focus (Orbit vs Centroid)</span>
+          <span class="key-badge">C</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Toggle Bird 3D Ribbons / Trails</span>
+          <span class="key-badge">T</span>
+        </div>
+        <div class="hotkey-item">
+          <span>Toggle Hotkey Help</span>
+          <span class="key-badge">H</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/birdRenderer.js"></script>
+  <script src="js/scenarioManager.js"></script>
+  <script src="js/controlsManager.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

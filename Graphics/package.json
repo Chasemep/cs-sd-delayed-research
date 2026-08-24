@@ -1,0 +1,12 @@
+{
+  "name": "cs-bird-flocking-visualizer",
+  "version": "1.0.0",
+  "description": "3D Bird Flocking Web Visualizer for Cucker-Smale Research",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["cucker-smale", "flocking", "3d", "threejs", "webgl"],
+  "author": "Antigravity",
+  "license": "MIT"
+}
