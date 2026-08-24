@@ -49,6 +49,7 @@ def compare_pca(output_dir):
         final_vels = final_df[vel_cols].values
         
         t_conv = None
+        v_conv = None
         conv_pos = None
         if model_name in conv_info:
             m_info = conv_info[model_name]
@@ -59,6 +60,12 @@ def compare_pca(output_dir):
                 conv_df = df[df['Time'] == closest_t].sort_values('AgentID')
                 conv_pos = conv_df[pos_cols].values
                 all_pos_for_pca.append(conv_pos)
+                
+                if m_info.get('v_conv') is not None and float(m_info['v_conv']) >= 0:
+                    v_conv = float(m_info['v_conv'])
+                else:
+                    mean_v = np.mean(conv_df[vel_cols].values, axis=0)
+                    v_conv = float(np.linalg.norm(mean_v))
 
         model_results.append({
             'name': model_name,
@@ -66,6 +73,7 @@ def compare_pca(output_dir):
             'final_pos': final_pos,
             'final_vels': final_vels,
             't_conv': t_conv,
+            'v_conv': v_conv,
             'conv_pos': conv_pos
         })
         
@@ -180,13 +188,16 @@ def compare_pca(output_dir):
     plt.xlabel(f"PCA 1 ({pca.explained_variance_ratio_[0]*100:.1f}%)", fontsize=12)
     plt.ylabel(f"PCA 2 ({pca.explained_variance_ratio_[1]*100:.1f}%)", fontsize=12)
     
-    # Custom Legend containing Model Names & Convergence Times
+    # Custom Legend containing Model Names, Convergence Times & Velocities
     from matplotlib.lines import Line2D
     custom_legend = []
     for i, m in enumerate(model_results):
         model_title = m['name'].replace('_', ' ').title()
         if m['t_conv'] is not None and m['t_conv'] >= 0:
-            label_str = f"{model_title} (t_conv = {m['t_conv']:.2f}s)"
+            if m.get('v_conv') is not None:
+                label_str = f"{model_title} (t_conv = {m['t_conv']:.2f}s, v_conv = {m['v_conv']:.2f})"
+            else:
+                label_str = f"{model_title} (t_conv = {m['t_conv']:.2f}s)"
         else:
             label_str = f"{model_title} (No Conv)"
         custom_legend.append(Line2D([0], [0], marker='o', color='w', label=label_str, 
@@ -196,12 +207,13 @@ def compare_pca(output_dir):
     custom_legend.append(Line2D([0], [0], marker='*', color='black', label='Convergence Point (*)', linestyle='None', markersize=10))
     custom_legend.append(Line2D([0], [0], marker='o', color='black', label='Final State', linestyle='None', markersize=8))
     
-    plt.legend(handles=custom_legend, title="Models & Convergence Times", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(handles=custom_legend, title="Models & Convergence Info", bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     
     output_path = os.path.join(output_dir, "comparison_pca.png")
     plt.savefig(output_path)
+    plt.close()
     print(f"Comparison PCA saved to {output_path}")
 
 if __name__ == "__main__":

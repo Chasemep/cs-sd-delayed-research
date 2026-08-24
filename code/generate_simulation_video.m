@@ -41,6 +41,7 @@ open(v);
 % Read convergence info metadata if present
 json_path = fullfile(output_dir, 'convergence_info.json');
 t_conv_val = NaN;
+v_conv_val = NaN;
 if exist(json_path, 'file')
     try
         tokens = regexp(csv_path, 'agent_positions_(.*)\.csv', 'tokens');
@@ -53,6 +54,9 @@ if exist(json_path, 'file')
                     m_info = info_json.(m_name);
                     if isfield(m_info, 't_conv') && ~isempty(m_info.t_conv) && m_info.t_conv >= 0
                         t_conv_val = m_info.t_conv;
+                    end
+                    if isfield(m_info, 'v_conv') && ~isempty(m_info.v_conv) && m_info.v_conv >= 0
+                        v_conv_val = m_info.v_conv;
                     end
                 end
             end
@@ -95,9 +99,15 @@ try
                           'MarkerEdgeColor', 'k', 'LineWidth', 1.0, 'HandleVisibility', 'off');
                 end
                 
+                if isnan(v_conv_val)
+                    t_c = times(idx_conv);
+                    df_c = df(df.Time == t_c, :);
+                    v_conv_val = norm([mean(df_c.VX), mean(df_c.VY), mean(df_c.VZ)]);
+                end
+                
                 % Dummy handle for legend entry
                 plot3(NaN, NaN, NaN, 'd', 'MarkerSize', 8, 'MarkerFaceColor', 'k', ...
-                      'MarkerEdgeColor', 'k', 'DisplayName', sprintf('Convergence (t_{conv} = %.2fs)', t_conv_val));
+                      'MarkerEdgeColor', 'k', 'DisplayName', sprintf('Convergence (t_{conv} = %.2fs, v_{conv} = %.2f)', t_conv_val, v_conv_val));
                 legend('Location', 'northeastoutside');
                 
                 conv_marked = true;

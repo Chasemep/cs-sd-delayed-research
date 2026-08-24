@@ -49,6 +49,11 @@ if isfield(data, 'k_conv') && ~isnan(data.k_conv)
 else
     entry.k_conv = -1;
 end
+if isfield(data, 'v_conv') && ~isnan(data.v_conv)
+    entry.v_conv = data.v_conv;
+else
+    entry.v_conv = -1;
+end
 if isfield(data, 'consensus_reached')
     entry.consensus_reached = logical(data.consensus_reached);
 else

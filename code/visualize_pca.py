@@ -176,8 +176,18 @@ def visualize_pca(csv_path, variance_threshold=0.1):
                 if t_conv is not None and t_conv >= 0:
                     times = df['Time'].unique()
                     closest_t = times[np.argmin(np.abs(times - t_conv))]
-                    conv_positions = df[df['Time'] == closest_t].sort_values('AgentID')[['X', 'Y', 'Z']].values
-                    ax.scatter(conv_pca[:, 0], conv_pca[:, 1], c='purple', marker='*', s=160, edgecolors='k', label=f'Convergence Point (t_conv = {t_conv:.2f}s)', zorder=15)
+                    conv_df = df[df['Time'] == closest_t].sort_values('AgentID')
+                    conv_positions = conv_df[['X', 'Y', 'Z']].values
+                    conv_pca = pca.transform(conv_positions)
+                    
+                    v_conv = m_info.get('v_conv')
+                    if v_conv is None or float(v_conv) < 0:
+                        mean_v = np.mean(conv_df[['VX', 'VY', 'VZ']].values, axis=0)
+                        v_conv = float(np.linalg.norm(mean_v))
+                    else:
+                        v_conv = float(v_conv)
+                    
+                    ax.scatter(conv_pca[:, 0], conv_pca[:, 1], c='purple', marker='*', s=160, edgecolors='k', label=f'Convergence Point (t_conv = {t_conv:.2f}s, v_conv = {v_conv:.2f})', zorder=15)
         except Exception as e:
             print(f"Convergence point plot skipped: {e}")
 
@@ -213,6 +223,7 @@ def visualize_pca(csv_path, variance_threshold=0.1):
     output_dir = os.path.dirname(csv_path)
     output_path = os.path.join(output_dir, 'pca_visualization.png')
     plt.savefig(output_path)
+    plt.close()
     print(f"PCA plot saved to {output_path}")
 
 if __name__ == "__main__":

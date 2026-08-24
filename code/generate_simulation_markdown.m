@@ -85,8 +85,8 @@ function generate_simulation_markdown(output_dir, model_type, num_agents, h, alp
             if ~isempty(strtrim(txt))
                 info_json = jsondecode(txt);
                 fprintf(fid, '### Convergence Breakdown\n');
-                fprintf(fid, '| Model | Convergence Time ($t_{conv}$) | Consensus Reached |\n');
-                fprintf(fid, '| :--- | :--- | :--- |\n');
+                fprintf(fid, '| Model | Convergence Time ($t_{conv}$) | Convergence Velocity ($v_{conv}$) | Consensus Reached |\n');
+                fprintf(fid, '| :--- | :--- | :--- | :--- |\n');
                 fields = fieldnames(info_json);
                 for f = 1:length(fields)
                     fname = fields{f};
@@ -98,12 +98,17 @@ function generate_simulation_markdown(output_dir, model_type, num_agents, h, alp
                     else
                         t_str = 'N/A';
                     end
+                    if isfield(m_info, 'v_conv') && ~isempty(m_info.v_conv) && m_info.v_conv >= 0
+                        v_str = sprintf('%.2f', m_info.v_conv);
+                    else
+                        v_str = 'N/A';
+                    end
                     if isfield(m_info, 'consensus_reached') && m_info.consensus_reached
                         c_str = 'Yes';
                     else
                         c_str = 'No';
                     end
-                    fprintf(fid, '| **%s** | %s | %s |\n', rname, t_str, c_str);
+                    fprintf(fid, '| **%s** | %s | %s | %s |\n', rname, t_str, v_str, c_str);
                 end
                 fprintf(fid, '\n');
             end

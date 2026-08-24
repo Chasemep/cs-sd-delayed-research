@@ -42,6 +42,7 @@ end
 consensus_reached = false;
 t_conv = NaN;
 k_conv = NaN;
+v_conv = NaN;
 convergence_window = 10;
 variance_threshold = convergence_thresh;
 
@@ -136,7 +137,11 @@ while k <= k_limit
                 consensus_reached = true;
                 k_conv = k + 1;
                 t_conv = t(k+1);
-                fprintf('[SD-Delay] State-dependent consensus stability reached at t=%.2f (step %d)\n', t_conv, k_conv);
+                mean_vx = mean(vx(:, k+1));
+                mean_vy = mean(vy(:, k+1));
+                mean_vz = mean(vz(:, k+1));
+                v_conv = sqrt(mean_vx^2 + mean_vy^2 + mean_vz^2);
+                fprintf('[SD-Delay] State-dependent consensus stability reached at t=%.2f (step %d), v_conv=%.2f\n', t_conv, k_conv, v_conv);
                 
                 % Extend simulation for more frames (double the time to reach consensus, or target)
                 k_limit = min(max_iterations, max(k + k, target_k_limit));
@@ -171,5 +176,6 @@ results.variance_threshold = variance_threshold;
 results.consensus_reached = consensus_reached;
 results.t_conv = t_conv;
 results.k_conv = k_conv;
+results.v_conv = v_conv;
 results.k_limit = k;
 end

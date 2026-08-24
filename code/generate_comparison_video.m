@@ -74,6 +74,7 @@ open(v);
 % Read convergence info metadata if present
 json_path = fullfile(output_dir, 'convergence_info.json');
 t_conv_vec = nan(1, num_models);
+v_conv_vec = nan(1, num_models);
 if exist(json_path, 'file')
     try
         txt = fileread(json_path);
@@ -85,6 +86,9 @@ if exist(json_path, 'file')
                     m_info = info_json.(m_key);
                     if isfield(m_info, 't_conv') && ~isempty(m_info.t_conv) && m_info.t_conv >= 0
                         t_conv_vec(m) = m_info.t_conv;
+                    end
+                    if isfield(m_info, 'v_conv') && ~isempty(m_info.v_conv) && m_info.v_conv >= 0
+                        v_conv_vec(m) = m_info.v_conv;
                     end
                 end
             end
@@ -106,7 +110,14 @@ for m = 1:num_models
     readable_name = strrep(model_names{m}, '_', ' ');
     readable_name = regexprep(readable_name, '(^| )(\w)', '${upper($2)}');
     if ~isnan(t_conv_vec(m)) && t_conv_vec(m) >= 0
-        disp_name = sprintf('%s (t_{conv} = %.2fs)', readable_name, t_conv_vec(m));
+        if isnan(v_conv_vec(m))
+            [~, idx_c] = min(abs(pos_mats{m}.times - t_conv_vec(m)));
+            t_c = pos_mats{m}.times(idx_c);
+            df_m = model_data{m};
+            df_c = df_m(df_m.Time == t_c, :);
+            v_conv_vec(m) = norm([mean(df_c.VX), mean(df_c.VY), mean(df_c.VZ)]);
+        end
+        disp_name = sprintf('%s (t_{conv} = %.2fs, v_{conv} = %.2f)', readable_name, t_conv_vec(m), v_conv_vec(m));
     else
         disp_name = sprintf('%s (No Conv)', readable_name);
     end
