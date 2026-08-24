@@ -5,6 +5,7 @@ from sklearn.decomposition import PCA
 import sys
 import os
 import glob
+import json
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import pdist
 from scipy.spatial import ConvexHull
@@ -15,6 +16,16 @@ def compare_pca(output_dir):
     if not csv_files:
         print(f"No CSVs found in {output_dir}")
         return
+
+    # Read convergence info metadata if present
+    json_path = os.path.join(output_dir, "convergence_info.json")
+    conv_info = {}
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r') as f:
+                conv_info = json.load(f)
+        except Exception as e:
+            print(f"Error reading convergence_info.json: {e}")
 
     model_results = []
     all_pos_for_pca = []
@@ -37,11 +48,25 @@ def compare_pca(output_dir):
         final_pos = final_df[pos_cols].values
         final_vels = final_df[vel_cols].values
         
+        t_conv = None
+        conv_pos = None
+        if model_name in conv_info:
+            m_info = conv_info[model_name]
+            if isinstance(m_info, dict) and m_info.get('t_conv') is not None and m_info.get('t_conv') >= 0:
+                t_conv = float(m_info['t_conv'])
+                times = df['Time'].unique()
+                closest_t = times[np.argmin(np.abs(times - t_conv))]
+                conv_df = df[df['Time'] == closest_t].sort_values('AgentID')
+                conv_pos = conv_df[pos_cols].values
+                all_pos_for_pca.append(conv_pos)
+
         model_results.append({
             'name': model_name,
             'init_pos': init_pos,
             'final_pos': final_pos,
-            'final_vels': final_vels
+            'final_vels': final_vels,
+            't_conv': t_conv,
+            'conv_pos': conv_pos
         })
         
         all_pos_for_pca.append(init_pos)
@@ -61,6 +86,7 @@ def compare_pca(output_dir):
     for idx, model in enumerate(model_results):
         model_color = colors[idx % 10]
         name = model['name']
+        readable_name = name.replace('_', ' ').title()
         
         init_pca = pca.transform(model['init_pos'])
         final_pca = pca.transform(model['final_pos'])
@@ -79,6 +105,13 @@ def compare_pca(output_dir):
         # Final (Dot)
         plt.scatter(final_pca[:, 0], final_pca[:, 1], marker='o', s=100, 
                     color=model_color, edgecolors='white', linewidths=1.0, zorder=10)
+
+        # Convergence Point Marker on actual plot (no text label on canvas)
+        if model['conv_pos'] is not None and model['t_conv'] is not None:
+            conv_pca = pca.transform(model['conv_pos'])
+            all_pca_points.append(conv_pca)
+            plt.scatter(conv_pca[:, 0], conv_pca[:, 1], marker='*', s=160, 
+                        color=model_color, edgecolors='black', linewidths=0.8, zorder=15)
 
         # Clustering
         vels = model['final_vels']
@@ -119,7 +152,6 @@ def compare_pca(output_dir):
             while collision and attempts < 15:
                 collision = False
                 for prev_x, prev_y in drawn_label_coords:
-                    # Check if too close to another label
                     if abs(text_x - prev_x) < 0.4 and abs(text_y - prev_y) < 0.2:
                         collision = True
                         text_y += 0.15 # Bump up
@@ -132,7 +164,7 @@ def compare_pca(output_dir):
             plt.text(text_x, text_y, f"v={v_mag:.2f}", 
                      fontsize=9, fontweight='bold', color='black', ha='center',
                      bbox=dict(facecolor='white', alpha=0.9, edgecolor=model_color, 
-                              boxstyle='round,pad=0.2', lw=1.2),
+                               boxstyle='round,pad=0.2', lw=1.2),
                      zorder=20)
 
     # Dynamic Zoom
@@ -148,11 +180,23 @@ def compare_pca(output_dir):
     plt.xlabel(f"PCA 1 ({pca.explained_variance_ratio_[0]*100:.1f}%)", fontsize=12)
     plt.ylabel(f"PCA 2 ({pca.explained_variance_ratio_[1]*100:.1f}%)", fontsize=12)
     
-    # Custom Legend
+    # Custom Legend containing Model Names & Convergence Times
     from matplotlib.lines import Line2D
-    custom_legend = [Line2D([0], [0], marker='o', color='w', label=m['name'], 
-                     markerfacecolor=colors[i % 10], markersize=10) for i, m in enumerate(model_results)]
-    plt.legend(handles=custom_legend, title="Models", bbox_to_anchor=(1.05, 1), loc='upper left')
+    custom_legend = []
+    for i, m in enumerate(model_results):
+        model_title = m['name'].replace('_', ' ').title()
+        if m['t_conv'] is not None and m['t_conv'] >= 0:
+            label_str = f"{model_title} (t_conv = {m['t_conv']:.2f}s)"
+        else:
+            label_str = f"{model_title} (No Conv)"
+        custom_legend.append(Line2D([0], [0], marker='o', color='w', label=label_str, 
+                            markerfacecolor=colors[i % 10], markersize=10))
+    
+    custom_legend.append(Line2D([0], [0], marker='x', color='black', label='Initial State (t=0)', linestyle='None', markersize=8))
+    custom_legend.append(Line2D([0], [0], marker='*', color='black', label='Convergence Point (*)', linestyle='None', markersize=10))
+    custom_legend.append(Line2D([0], [0], marker='o', color='black', label='Final State', linestyle='None', markersize=8))
+    
+    plt.legend(handles=custom_legend, title="Models & Convergence Times", bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, linestyle='--', alpha=0.5)
     plt.tight_layout()
     

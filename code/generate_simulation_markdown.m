@@ -77,6 +77,40 @@ function generate_simulation_markdown(output_dir, model_type, num_agents, h, alp
     end
     fprintf(fid, '| **Tolerance** | %.5f | Threshold for precise convergence. |\n\n', convergence_thresh);
     
+    % Convergence summary table if metadata exists
+    json_path = fullfile(output_dir, 'convergence_info.json');
+    if exist(json_path, 'file')
+        try
+            txt = fileread(json_path);
+            if ~isempty(strtrim(txt))
+                info_json = jsondecode(txt);
+                fprintf(fid, '### Convergence Breakdown\n');
+                fprintf(fid, '| Model | Convergence Time ($t_{conv}$) | Consensus Reached |\n');
+                fprintf(fid, '| :--- | :--- | :--- |\n');
+                fields = fieldnames(info_json);
+                for f = 1:length(fields)
+                    fname = fields{f};
+                    m_info = info_json.(fname);
+                    rname = strrep(fname, '_', ' ');
+                    rname = regexprep(rname, '(^| )(\w)', '${upper($2)}');
+                    if isfield(m_info, 't_conv') && ~isempty(m_info.t_conv) && m_info.t_conv >= 0
+                        t_str = sprintf('%.2f s', m_info.t_conv);
+                    else
+                        t_str = 'N/A';
+                    end
+                    if isfield(m_info, 'consensus_reached') && m_info.consensus_reached
+                        c_str = 'Yes';
+                    else
+                        c_str = 'No';
+                    end
+                    fprintf(fid, '| **%s** | %s | %s |\n', rname, t_str, c_str);
+                end
+                fprintf(fid, '\n');
+            end
+        catch
+        end
+    end
+    
     fprintf(fid, '### Mathematical Formulas\n');
     fprintf(fid, '1. **Standard Model**:\n');
     fprintf(fid, '$$\\frac{d\\mathbf{v}_i(t)}{dt} = \\frac{%.3f}{%d} \\sum_{j=1}^{%d} \\frac{1}{1 + \\Vert \\mathbf{x}_j(t) - \\mathbf{x}_i(t) \\Vert^{%.3f}} (\\mathbf{v}_j(t) - \\mathbf{v}_i(t))$$\n\n', alpha, num_agents, num_agents, beta);

@@ -161,6 +161,26 @@ def visualize_pca(csv_path, variance_threshold=0.1):
             
             print(f"Group {k} ({group_type}): Agents {np.where(class_member_mask)[0]}, Mean Vel Mag: {v_mag:.4f}")
 
+    # Check for convergence info metadata
+    output_dir = os.path.dirname(csv_path)
+    json_path = os.path.join(output_dir, 'convergence_info.json')
+    if os.path.exists(json_path):
+        import json
+        try:
+            model_name = os.path.basename(csv_path).replace("agent_positions_", "").replace(".csv", "")
+            with open(json_path, 'r') as f:
+                info_json = json.load(f)
+            if model_name in info_json:
+                m_info = info_json[model_name]
+                t_conv = m_info.get('t_conv')
+                if t_conv is not None and t_conv >= 0:
+                    times = df['Time'].unique()
+                    closest_t = times[np.argmin(np.abs(times - t_conv))]
+                    conv_positions = df[df['Time'] == closest_t].sort_values('AgentID')[['X', 'Y', 'Z']].values
+                    ax.scatter(conv_pca[:, 0], conv_pca[:, 1], c='purple', marker='*', s=160, edgecolors='k', label=f'Convergence Point (t_conv = {t_conv:.2f}s)', zorder=15)
+        except Exception as e:
+            print(f"Convergence point plot skipped: {e}")
+
     # Draw hulls for velocity groups
     draw_cluster_hulls(final_pca, final_labels, final_velocities, stationary_groups)
 
@@ -185,11 +205,7 @@ def visualize_pca(csv_path, variance_threshold=0.1):
     # Deduplicate legend labels
     handles, labels = ax.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    # Filter out cluster labels to keep legend clean? Or keep them? 
-    # Let's keep just the main points and maybe one generic "Cluster" entry if possible, 
-    # but simplest is to just show points. The title explains the circles.
-    simple_legend = {k: v for k, v in by_label.items() if 'Position' in k}
-    ax.legend(simple_legend.values(), simple_legend.keys())
+    ax.legend(by_label.values(), by_label.keys())
     
     ax.grid(True)
     

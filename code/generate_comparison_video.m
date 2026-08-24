@@ -43,6 +43,28 @@ end
 
 open(v);
 
+% Read convergence info metadata if present
+json_path = fullfile(output_dir, 'convergence_info.json');
+t_conv_vec = nan(1, num_models);
+if exist(json_path, 'file')
+    try
+        txt = fileread(json_path);
+        if ~isempty(strtrim(txt))
+            info_json = jsondecode(txt);
+            for m = 1:num_models
+                m_key = model_names{m};
+                if isfield(info_json, m_key)
+                    m_info = info_json.(m_key);
+                    if isfield(m_info, 't_conv') && ~isempty(m_info.t_conv) && m_info.t_conv >= 0
+                        t_conv_vec(m) = m_info.t_conv;
+                    end
+                end
+            end
+        end
+    catch
+    end
+end
+
 colors = {'r', 'b', 'g', 'm', 'c', 'k'};
 fig = figure;
 rotate3d on;
@@ -50,17 +72,24 @@ grid on; view(3); axis tight; hold on;
 xlabel('X'); ylabel('Y'); zlabel('Z');
 
 % Legend setup
-h_models = zeros(1, num_models);
+h_models = zeros(1, num_models + 1);
 for m = 1:num_models
     model_color = colors{mod(m-1, length(colors))+1};
     readable_name = strrep(model_names{m}, '_', ' ');
     readable_name = regexprep(readable_name, '(^| )(\w)', '${upper($2)}');
-    h_models(m) = plot3(NaN, NaN, NaN, 'Color', model_color, 'LineWidth', 2, 'DisplayName', readable_name);
+    if ~isnan(t_conv_vec(m)) && t_conv_vec(m) >= 0
+        disp_name = sprintf('%s (t_{conv} = %.2fs)', readable_name, t_conv_vec(m));
+    else
+        disp_name = sprintf('%s (No Conv)', readable_name);
+    end
+    h_models(m) = plot3(NaN, NaN, NaN, 'Color', model_color, 'LineWidth', 2, 'DisplayName', disp_name);
 end
+h_models(num_models + 1) = plot3(NaN, NaN, NaN, 'd', 'MarkerSize', 8, 'MarkerFaceColor', 'k', 'MarkerEdgeColor', 'k', 'LineWidth', 1, 'DisplayName', 'Convergence Point');
 legend(h_models, 'Location', 'northeastoutside', 'AutoUpdate', 'off');
 
 % Store head handles to delete them in next frame
 h_heads = cell(1, num_models);
+conv_marked = false(1, num_models);
 
 try
     for k = 1:num_steps
@@ -101,6 +130,22 @@ try
                 h_heads{m}(end+1) = plot3(agent_row.X, agent_row.Y, agent_row.Z, ...
                                           '.', 'Color', model_color, 'MarkerSize', 20, ...
                                           'HandleVisibility', 'off');
+            end
+            
+            % Mark convergence point on each agent's trajectory line when time reaches t_conv
+            if ~conv_marked(m) && ~isnan(t_conv_vec(m)) && t >= t_conv_vec(m)
+                unique_t = unique(df.Time);
+                [~, idx_conv] = min(abs(unique_t - t_conv_vec(m)));
+                t_actual_conv = unique_t(idx_conv);
+                conv_data = df(df.Time == t_actual_conv, :);
+                if ~isempty(conv_data)
+                    for i = 1:size(conv_data, 1)
+                        plot3(conv_data.X(i), conv_data.Y(i), conv_data.Z(i), 'd', ...
+                              'MarkerSize', 7, 'MarkerFaceColor', model_color, ...
+                              'MarkerEdgeColor', 'k', 'LineWidth', 0.8, 'HandleVisibility', 'off');
+                    end
+                    conv_marked(m) = true;
+                end
             end
         end
         drawnow;

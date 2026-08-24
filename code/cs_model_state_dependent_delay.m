@@ -1,7 +1,11 @@
-function results = cs_model_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh)
+function results = cs_model_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh, target_k_limit)
 % CS_MODEL_STATE_DEPENDENT_DELAY Cucker-Smale model with distance-dependent delay.
 % Formula: aij = phi(dist(t - tau * dist_current))
 % Delay: tau_ij = tau_factor * dist_current
+
+if nargin < 12 || isempty(target_k_limit)
+    target_k_limit = 0;
+end
 
 phi = @(z) 1./(1+z.^beta);
 N = length(x0);
@@ -32,7 +36,12 @@ end
 k = 2;
 max_iterations = 10000;
 k_limit = max_iterations;
+if target_k_limit > 0
+    k_limit = min(max_iterations, target_k_limit);
+end
 consensus_reached = false;
+t_conv = NaN;
+k_conv = NaN;
 convergence_window = 10;
 variance_threshold = convergence_thresh;
 
@@ -102,14 +111,25 @@ while k <= k_limit
     if ~consensus_reached && k >= convergence_window + 1
         if mod(k, 5) == 0
             recent_vx = vx(:, k-convergence_window+1:k+1);
-            vx_change_max = max(abs(diff(recent_vx, 1, 2)), [], 'all');
+            recent_vy = vy(:, k-convergence_window+1:k+1);
+            recent_vz = vz(:, k-convergence_window+1:k+1);
             
-            if vx_change_max < (convergence_thresh / 5)
+            vx_change_max = max(abs(diff(recent_vx, 1, 2)), [], 'all');
+            vy_change_max = max(abs(diff(recent_vy, 1, 2)), [], 'all');
+            vz_change_max = max(abs(diff(recent_vz, 1, 2)), [], 'all');
+            
+            stability_limit = convergence_thresh / 5;
+            
+            if (vx_change_max < stability_limit) && ...
+               (vy_change_max < stability_limit) && ...
+               (vz_change_max < stability_limit)
                 consensus_reached = true;
-                fprintf('[SD-Delay] State-dependent consensus stability reached at t=%.2f\n', t(k+1));
+                k_conv = k + 1;
+                t_conv = t(k+1);
+                fprintf('[SD-Delay] State-dependent consensus stability reached at t=%.2f (step %d)\n', t_conv, k_conv);
                 
-                % Extend simulation for more frames (double the time to reach consensus)
-                k_limit = min(max_iterations, k + k);
+                % Extend simulation for more frames (double the time to reach consensus, or target)
+                k_limit = min(max_iterations, max(k + k, target_k_limit));
                 fprintf('[SD-Delay] Continuing simulation until step %d for extended visualization.\n', k_limit);
             end
         end
@@ -138,4 +158,8 @@ results.beta = beta;
 results.tau_factor = tau_factor;
 results.convergence_thresh = convergence_thresh;
 results.variance_threshold = variance_threshold;
+results.consensus_reached = consensus_reached;
+results.t_conv = t_conv;
+results.k_conv = k_conv;
+results.k_limit = k;
 end

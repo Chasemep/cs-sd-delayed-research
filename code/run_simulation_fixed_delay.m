@@ -1,5 +1,9 @@
-function run_simulation_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, output_dir)
+function run_simulation_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, output_dir, target_k_limit)
 % RUN_SIMULATION_FIXED_DELAY Orchestrator for Fixed Delay Cucker-Smale simulation.
+
+if nargin < 13
+    target_k_limit = 0;
+end
 
 % 1. Add script directory to path and determine Project Root
 script_dir = fileparts(mfilename('fullpath'));
@@ -16,7 +20,7 @@ else
 end
 
 % 1.5 Run the model
-results = cs_model_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh);
+results = cs_model_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, target_k_limit);
 
 % 2. Handle Output Directory (if not provided by master)
 if nargin < 12 || isempty(output_dir)

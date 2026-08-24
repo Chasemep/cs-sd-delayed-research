@@ -25,6 +25,29 @@ end
 
 open(v);
 
+% Read convergence info metadata if present
+json_path = fullfile(output_dir, 'convergence_info.json');
+t_conv_val = NaN;
+if exist(json_path, 'file')
+    try
+        tokens = regexp(csv_path, 'agent_positions_(.*)\.csv', 'tokens');
+        if ~isempty(tokens)
+            m_name = tokens{1}{1};
+            txt = fileread(json_path);
+            if ~isempty(strtrim(txt))
+                info_json = jsondecode(txt);
+                if isfield(info_json, m_name)
+                    m_info = info_json.(m_name);
+                    if isfield(m_info, 't_conv') && ~isempty(m_info.t_conv) && m_info.t_conv >= 0
+                        t_conv_val = m_info.t_conv;
+                    end
+                end
+            end
+        end
+    catch
+    end
+end
+
 colorstring = 'rgbcmk'; 
 fig = figure;
 rotate3d on;
@@ -34,6 +57,7 @@ xlabel('X'); ylabel('Y'); zlabel('Z');
 % Store handles for plot tails and heads
 h_tail = zeros(1, N);
 h_head = zeros(1, N);
+conv_marked = false;
 
 try
     for k = 1:num_steps
@@ -63,6 +87,27 @@ try
             % Plot current position as a large distinct point
             h_head(i) = plot3(agent_data.X, agent_data.Y, agent_data.Z, ...
                               '.', 'Color', c, 'MarkerSize', 20);
+        end
+        
+        % Mark convergence point on each agent trajectory line when time reaches t_conv
+        if ~conv_marked && ~isnan(t_conv_val) && times(k) >= t_conv_val
+            [~, idx_conv] = min(abs(times - t_conv_val));
+            conv_data = df(df.Time == times(idx_conv), :);
+            if ~isempty(conv_data)
+                for i = 1:size(conv_data, 1)
+                    c = colorstring(mod(i-1, length(colorstring)) + 1);
+                    plot3(conv_data.X(i), conv_data.Y(i), conv_data.Z(i), 'd', ...
+                          'MarkerSize', 8, 'MarkerFaceColor', c, ...
+                          'MarkerEdgeColor', 'k', 'LineWidth', 1.0, 'HandleVisibility', 'off');
+                end
+                
+                % Dummy handles for legend entry
+                plot3(NaN, NaN, NaN, 'd', 'MarkerSize', 8, 'MarkerFaceColor', 'k', ...
+                      'MarkerEdgeColor', 'k', 'DisplayName', sprintf('Convergence (t_{conv} = %.2fs)', t_conv_val));
+                legend('Location', 'northeastoutside');
+                
+                conv_marked = true;
+            end
         end
         
         title(sprintf('Cucker-Smale Simulation (t = %.2f)', times(k)));

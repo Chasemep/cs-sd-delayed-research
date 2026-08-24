@@ -36,19 +36,28 @@ if fid ~= -1
     fclose(fid);
 end
 
-% 3. Run Models and Export CSVs Only
+% 3. Run Models and Synchronize Simulation Duration
 fprintf('--- Running Models ---\n');
 
-% Standard (No Delay)
 res_no = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh);
-write_simulation_csv(res_no, output_dir, 'no_delay');
-
-% Fixed Delay
 res_fixed = cs_model_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh);
-write_simulation_csv(res_fixed, output_dir, 'fixed_delay');
-
-% State-Dependent Delay
 res_state = cs_model_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh);
+
+max_target_k = max([res_no.k_limit, res_fixed.k_limit, res_state.k_limit]);
+fprintf('Maximum simulation step limit across models: %d (t = %.2f)\n', max_target_k, (max_target_k - 1) * h);
+
+if res_no.k_limit < max_target_k
+    res_no = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh, max_target_k);
+end
+if res_fixed.k_limit < max_target_k
+    res_fixed = cs_model_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, max_target_k);
+end
+if res_state.k_limit < max_target_k
+    res_state = cs_model_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh, max_target_k);
+end
+
+write_simulation_csv(res_no, output_dir, 'no_delay');
+write_simulation_csv(res_fixed, output_dir, 'fixed_delay');
 write_simulation_csv(res_state, output_dir, 'state_delay');
 
 % 4. Generate Comparative Analysis

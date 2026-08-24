@@ -1,6 +1,10 @@
-function results = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh)
+function results = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh, target_k_limit)
 % CS_MODEL_NO_DELAY Core physics model for standard Cucker-Smale system (no delay).
 % This function performs the simulation and returns result data.
+
+if nargin < 11 || isempty(target_k_limit)
+    target_k_limit = 0;
+end
 
 phi = @(z) 1./(1+z.^beta);
 N = length(x0);
@@ -23,7 +27,12 @@ vx(:,1) = vx0; vy(:,1) = vy0; vz(:,1) = vz0;
 k = 1;
 max_iterations = 10000;
 k_limit = max_iterations;
+if target_k_limit > 0
+    k_limit = min(max_iterations, target_k_limit);
+end
 consensus_reached = false;
+t_conv = NaN;
+k_conv = NaN;
 convergence_window = 10;
 convergence_threshold = convergence_thresh;
 variance_threshold = convergence_thresh;
@@ -72,10 +81,12 @@ while k < k_limit
                (vy_change_max < stability_limit) && ...
                (vz_change_max < stability_limit)
                 consensus_reached = true;
-                fprintf('[No-Delay] Global stability reached at t=%.2f (step %d)\n', t(k+1), k+1);
+                k_conv = k + 1;
+                t_conv = t(k+1);
+                fprintf('[No-Delay] Global stability reached at t=%.2f (step %d)\n', t_conv, k_conv);
                 
-                % Extend simulation for more frames (double the time to reach consensus)
-                k_limit = min(max_iterations, k + k);
+                % Extend simulation for more frames (double the time to reach consensus, or target)
+                k_limit = min(max_iterations, max(k + k, target_k_limit));
                 fprintf('[No-Delay] Continuing simulation until step %d for extended visualization.\n', k_limit);
             end
         end
@@ -103,4 +114,8 @@ results.alpha = alpha;
 results.beta = beta;
 results.convergence_thresh = convergence_thresh;
 results.variance_threshold = convergence_thresh;
+results.consensus_reached = consensus_reached;
+results.t_conv = t_conv;
+results.k_conv = k_conv;
+results.k_limit = k;
 end

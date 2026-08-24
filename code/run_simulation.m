@@ -36,17 +36,25 @@ if fid ~= -1
     fclose(fid);
 end
 
+% 1.8 Determine maximum simulation limit across models
+fprintf('--- Determining Convergence Durations ---\n');
+res_no_init = cs_model_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh);
+res_fixed_init = cs_model_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh);
+res_state_init = cs_model_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh);
+max_target_k = max([res_no_init.k_limit, res_fixed_init.k_limit, res_state_init.k_limit]);
+fprintf('Maximum simulation step limit across models: %d (t = %.2f)\n', max_target_k, (max_target_k - 1) * h);
+
 % 2. Run Standard model (No Delay)
 fprintf('--- Running Standard Model (No Delay) ---\n');
-run_simulation_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh, output_dir);
+run_simulation_no_delay(x0, y0, z0, vx0, vy0, vz0, h, alpha, beta, convergence_thresh, output_dir, max_target_k);
 
 % 3. Run Delayed model (Fixed Delay)
 fprintf('--- Running Delayed Model (Fixed Delay) ---\n');
-run_simulation_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, output_dir);
+run_simulation_fixed_delay(x0, y0, z0, vx0, vy0, vz0, h, tau, alpha, beta, convergence_thresh, output_dir, max_target_k);
 
 % 3.5 Run State-Dependent Delayed model
 fprintf('--- Running State-Dependent Delayed Model ---\n');
-run_simulation_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh, output_dir);
+run_simulation_state_dependent_delay(x0, y0, z0, vx0, vy0, vz0, h, tau_factor, alpha, beta, convergence_thresh, output_dir, max_target_k);
 
 % 4. Generate Comparative Analysis
 if exist('generate_comparison_video.m', 'file')
