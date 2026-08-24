@@ -71,21 +71,31 @@ while k <= k_limit
            % 3. Evaluate interaction at delayed time
            lookback_t = t(k) - tau_ij;
            
-           if lookback_t <= t(1)
-               % No delay effect yet if lookback is before start
+           if lookback_t <= 0
+               % No delay effect yet if lookback is at or before start
                vj_delayed = vx(j,1);
                vj_delayed_y = vy(j,1);
                vj_delayed_z = vz(j,1);
                dist_delayed = dist_curr;
+           elseif lookback_t >= t(k)
+               vj_delayed = vx(j,k);
+               vj_delayed_y = vy(j,k);
+               vj_delayed_z = vz(j,k);
+               dist_delayed = dist_curr;
            else
-               % Interpolate delayed states
-               vj_delayed = spline(t(1:k), vx(j,1:k), lookback_t);
-               vj_delayed_y = spline(t(1:k), vy(j,1:k), lookback_t);
-               vj_delayed_z = spline(t(1:k), vz(j,1:k), lookback_t);
+               % Fast O(1) linear interpolation on uniform time grid
+               idx_f = 1 + lookback_t / h;
+               i_f = floor(idx_f);
+               frac = idx_f - i_f;
                
-               xj_delayed = spline(t(1:k), x(j,1:k), lookback_t);
-               yj_delayed = spline(t(1:k), y(j,1:k), lookback_t);
-               zj_delayed = spline(t(1:k), z(j,1:k), lookback_t);
+               vj_delayed   = (1-frac)*vx(j,i_f) + frac*vx(j,i_f+1);
+               vj_delayed_y = (1-frac)*vy(j,i_f) + frac*vy(j,i_f+1);
+               vj_delayed_z = (1-frac)*vz(j,i_f) + frac*vz(j,i_f+1);
+               
+               xj_delayed   = (1-frac)*x(j,i_f) + frac*x(j,i_f+1);
+               yj_delayed   = (1-frac)*y(j,i_f) + frac*y(j,i_f+1);
+               zj_delayed   = (1-frac)*z(j,i_f) + frac*z(j,i_f+1);
+               
                dist_delayed = sqrt((x(i,k)-xj_delayed)^2 + (y(i,k)-yj_delayed)^2 + (z(i,k)-zj_delayed)^2);
            end
            

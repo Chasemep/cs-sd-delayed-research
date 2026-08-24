@@ -13,6 +13,19 @@ agent_ids = unique(df.AgentID);
 N = length(agent_ids);
 num_steps = length(times);
 
+% Pre-process CSV table into numerical 3D position matrices (N x K)
+X_mat = zeros(N, num_steps);
+Y_mat = zeros(N, num_steps);
+Z_mat = zeros(N, num_steps);
+
+[~, agent_indices] = ismember(df.AgentID, agent_ids);
+[~, time_indices] = ismember(df.Time, times);
+linear_idx = sub2ind([N, num_steps], agent_indices, time_indices);
+
+X_mat(linear_idx) = df.X;
+Y_mat(linear_idx) = df.Y;
+Z_mat(linear_idx) = df.Z;
+
 video_path = fullfile(output_dir, 'simulation_video.avi');
 v = VideoWriter(video_path, 'Uncompressed AVI');
 
@@ -54,54 +67,35 @@ rotate3d on;
 grid on; view(3); axis tight; hold on;
 xlabel('X'); ylabel('Y'); zlabel('Z');
 
-% Store handles for plot tails and heads
+% Pre-allocate handles for plot tails and heads
 h_tail = zeros(1, N);
 h_head = zeros(1, N);
+for i = 1:N
+    c = colorstring(mod(i-1, length(colorstring)) + 1);
+    h_tail(i) = plot3(NaN, NaN, NaN, 'Color', c, 'LineWidth', 1.0, 'HandleVisibility', 'off');
+    h_head(i) = plot3(NaN, NaN, NaN, '.', 'Color', c, 'MarkerSize', 20, 'HandleVisibility', 'off');
+end
 conv_marked = false;
 
 try
     for k = 1:num_steps
-        current_step_data = df(df.Time == times(k), :);
-        
         for i = 1:N
-            agent_data = current_step_data(current_step_data.AgentID == agent_ids(i), :);
-            if isempty(agent_data), continue; end
-            
-            c = colorstring(mod(i-1, length(colorstring)) + 1);
-            
-            % Draw segment of path
-            if k > 1
-                prev_step_data = df(df.Time == times(k-1), :);
-                prev_agent = prev_step_data(prev_step_data.AgentID == agent_ids(i), :);
-                if ~isempty(prev_agent)
-                    plot3([prev_agent.X, agent_data.X], ...
-                          [prev_agent.Y, agent_data.Y], ...
-                          [prev_agent.Z, agent_data.Z], ...
-                          'Color', c, 'LineWidth', 1.0);
-                end
-            end
-            
-            % Update head (remove old, draw new large point)
-            if h_head(i) ~= 0 && ishandle(h_head(i)), delete(h_head(i)); end
-            
-            % Plot current position as a large distinct point
-            h_head(i) = plot3(agent_data.X, agent_data.Y, agent_data.Z, ...
-                              '.', 'Color', c, 'MarkerSize', 20);
+            set(h_tail(i), 'XData', X_mat(i, 1:k), 'YData', Y_mat(i, 1:k), 'ZData', Z_mat(i, 1:k));
+            set(h_head(i), 'XData', X_mat(i, k), 'YData', Y_mat(i, k), 'ZData', Z_mat(i, k));
         end
         
         % Mark convergence point on each agent trajectory line when time reaches t_conv
         if ~conv_marked && ~isnan(t_conv_val) && times(k) >= t_conv_val
             [~, idx_conv] = min(abs(times - t_conv_val));
-            conv_data = df(df.Time == times(idx_conv), :);
-            if ~isempty(conv_data)
-                for i = 1:size(conv_data, 1)
+            if idx_conv <= num_steps
+                for i = 1:N
                     c = colorstring(mod(i-1, length(colorstring)) + 1);
-                    plot3(conv_data.X(i), conv_data.Y(i), conv_data.Z(i), 'd', ...
+                    plot3(X_mat(i, idx_conv), Y_mat(i, idx_conv), Z_mat(i, idx_conv), 'd', ...
                           'MarkerSize', 8, 'MarkerFaceColor', c, ...
                           'MarkerEdgeColor', 'k', 'LineWidth', 1.0, 'HandleVisibility', 'off');
                 end
                 
-                % Dummy handles for legend entry
+                % Dummy handle for legend entry
                 plot3(NaN, NaN, NaN, 'd', 'MarkerSize', 8, 'MarkerFaceColor', 'k', ...
                       'MarkerEdgeColor', 'k', 'DisplayName', sprintf('Convergence (t_{conv} = %.2fs)', t_conv_val));
                 legend('Location', 'northeastoutside');

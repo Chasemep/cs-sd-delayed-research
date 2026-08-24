@@ -61,17 +61,44 @@ while k <= k_limit
        vy(i,k+1) = vy(i,k);
        vz(i,k+1) = vz(i,k);
        for j = 1:N
-           % Use spline interpolation for delays
-           vx(i,k+1) = vx(i,k+1) + h*alpha*ax(i,j)*(spline(t(1:k),vx(j,1:k),t(k)-tau(i,j))-vx(i,k)); 
-           vy(i,k+1) = vy(i,k+1) + h*alpha*ay(i,j)*(spline(t(1:k),vy(j,1:k),t(k)-tau(i,j))-vy(i,k)); 
-           vz(i,k+1) = vz(i,k+1) + h*alpha*az(i,j)*(spline(t(1:k),vz(j,1:k),t(k)-tau(i,j))-vz(i,k)); 
+           t_del_v = t(k) - tau(i,j);
+           
+           % Fast O(1) delay interpolation for uniform time grid
+           if t_del_v <= 0
+               vx_j = vx(j,1); vy_j = vy(j,1); vz_j = vz(j,1);
+           elseif t_del_v >= t(k)
+               vx_j = vx(j,k); vy_j = vy(j,k); vz_j = vz(j,k);
+           else
+               idx_v = 1 + t_del_v / h;
+               i_v = floor(idx_v); f_v = idx_v - i_v;
+               vx_j = (1-f_v)*vx(j,i_v) + f_v*vx(j,i_v+1);
+               vy_j = (1-f_v)*vy(j,i_v) + f_v*vy(j,i_v+1);
+               vz_j = (1-f_v)*vz(j,i_v) + f_v*vz(j,i_v+1);
+           end
+
+           vx(i,k+1) = vx(i,k+1) + h*alpha*ax(i,j)*(vx_j - vx(i,k)); 
+           vy(i,k+1) = vy(i,k+1) + h*alpha*ay(i,j)*(vy_j - vy(i,k)); 
+           vz(i,k+1) = vz(i,k+1) + h*alpha*az(i,j)*(vz_j - vz(i,k)); 
            
            if t(k+1) < tau(i,j) || i == j
                ax(i,j) = 0; ay(i,j) = 0; az(i,j) = 0;
            else
-               ax(i,j) = phi(abs(spline(t(1:k+1),x(j,1:k+1),t(k+1)-tau(i,j))-x(i,k+1)))/N;
-               ay(i,j) = phi(abs(spline(t(1:k+1),y(j,1:k+1),t(k+1)-tau(i,j))-y(i,k+1)))/N;
-               az(i,j) = phi(abs(spline(t(1:k+1),z(j,1:k+1),t(k+1)-tau(i,j))-z(i,k+1)))/N;
+               t_del_x = t(k+1) - tau(i,j);
+               if t_del_x <= 0
+                   xj_del = x(j,1); yj_del = y(j,1); zj_del = z(j,1);
+               elseif t_del_x >= t(k+1)
+                   xj_del = x(j,k+1); yj_del = y(j,k+1); zj_del = z(j,k+1);
+               else
+                   idx_x = 1 + t_del_x / h;
+                   i_x = floor(idx_x); f_x = idx_x - i_x;
+                   xj_del = (1-f_x)*x(j,i_x) + f_x*x(j,i_x+1);
+                   yj_del = (1-f_x)*y(j,i_x) + f_x*y(j,i_x+1);
+                   zj_del = (1-f_x)*z(j,i_x) + f_x*z(j,i_x+1);
+               end
+
+               ax(i,j) = phi(abs(xj_del - x(i,k+1)))/N;
+               ay(i,j) = phi(abs(yj_del - y(i,k+1)))/N;
+               az(i,j) = phi(abs(zj_del - z(i,k+1)))/N;
            end
        end
     end

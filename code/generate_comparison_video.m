@@ -23,10 +23,38 @@ for i = 1:num_models
     end
 end
 
+% Pre-process CSV tables into fast numerical 3D position matrices (N x K)
+pos_mats = cell(1, num_models);
+for m = 1:num_models
+    df = model_data{m};
+    u_times = unique(df.Time);
+    u_agents = unique(df.AgentID);
+    N_m = length(u_agents);
+    K_m = length(u_times);
+    
+    X_m = zeros(N_m, K_m);
+    Y_m = zeros(N_m, K_m);
+    Z_m = zeros(N_m, K_m);
+    
+    [~, agent_indices] = ismember(df.AgentID, u_agents);
+    [~, time_indices] = ismember(df.Time, u_times);
+    linear_idx = sub2ind([N_m, K_m], agent_indices, time_indices);
+    
+    X_m(linear_idx) = df.X;
+    Y_m(linear_idx) = df.Y;
+    Z_m(linear_idx) = df.Z;
+    
+    pos_mats{m}.X = X_m;
+    pos_mats{m}.Y = Y_m;
+    pos_mats{m}.Z = Z_m;
+    pos_mats{m}.N = N_m;
+    pos_mats{m}.times = u_times;
+end
+
 % Get time steps
 all_times = [];
-for i = 1:num_models
-    all_times = unique([all_times; model_data{i}.Time]);
+for m = 1:num_models
+    all_times = unique([all_times; pos_mats{m}.times]);
 end
 all_times = sort(all_times);
 num_steps = length(all_times);
@@ -87,8 +115,20 @@ end
 h_models(num_models + 1) = plot3(NaN, NaN, NaN, 'd', 'MarkerSize', 8, 'MarkerFaceColor', 'k', 'MarkerEdgeColor', 'k', 'LineWidth', 1, 'DisplayName', 'Convergence Point');
 legend(h_models, 'Location', 'northeastoutside', 'AutoUpdate', 'off');
 
-% Store head handles to delete them in next frame
+% Pre-allocate graphic handles for trajectories and heads
+h_lines = cell(1, num_models);
 h_heads = cell(1, num_models);
+for m = 1:num_models
+    model_color = colors{mod(m-1, length(colors))+1};
+    N_m = pos_mats{m}.N;
+    h_lines{m} = zeros(1, N_m);
+    h_heads{m} = zeros(1, N_m);
+    for i = 1:N_m
+        h_lines{m}(i) = plot3(NaN, NaN, NaN, 'Color', model_color, 'LineWidth', 0.8, 'HandleVisibility', 'off');
+        h_heads{m}(i) = plot3(NaN, NaN, NaN, '.', 'Color', model_color, 'MarkerSize', 20, 'HandleVisibility', 'off');
+    end
+end
+
 conv_marked = false(1, num_models);
 
 try
@@ -97,50 +137,25 @@ try
         title(sprintf('Multi-Model Comparison (t = %.2f)', t));
         
         for m = 1:num_models
-            df = model_data{m};
-            step_data = df(df.Time == t, :);
-            if isempty(step_data), continue; end
-            
+            X_m = pos_mats{m}.X;
+            Y_m = pos_mats{m}.Y;
+            Z_m = pos_mats{m}.Z;
+            N_m = pos_mats{m}.N;
             model_color = colors{mod(m-1, length(colors))+1};
             
-            % Delete previous heads for this model
-            for head_idx = 1:length(h_heads{m})
-                if h_heads{m}(head_idx) ~= 0 && ishandle(h_heads{m}(head_idx))
-                    delete(h_heads{m}(head_idx));
+            if k <= size(X_m, 2)
+                for i = 1:N_m
+                    set(h_lines{m}(i), 'XData', X_m(i, 1:k), 'YData', Y_m(i, 1:k), 'ZData', Z_m(i, 1:k));
+                    set(h_heads{m}(i), 'XData', X_m(i, k), 'YData', Y_m(i, k), 'ZData', Z_m(i, k));
                 end
-            end
-            h_heads{m} = []; 
-            
-            % Draw paths and current heads
-            for i = 1:size(step_data, 1)
-                agent_row = step_data(i, :);
-                
-                % Path segment
-                if k > 1
-                    prev_step_data = df(df.Time == all_times(k-1) & df.AgentID == agent_row.AgentID, :);
-                    if ~isempty(prev_step_data)
-                        plot3([prev_step_data.X, agent_row.X], ...
-                              [prev_step_data.Y, agent_row.Y], ...
-                              [prev_step_data.Z, agent_row.Z], ...
-                              'Color', model_color, 'LineWidth', 0.8, 'HandleVisibility', 'off');
-                    end
-                end
-                
-                % Current head (Distinct large point for visibility)
-                h_heads{m}(end+1) = plot3(agent_row.X, agent_row.Y, agent_row.Z, ...
-                                          '.', 'Color', model_color, 'MarkerSize', 20, ...
-                                          'HandleVisibility', 'off');
             end
             
             % Mark convergence point on each agent's trajectory line when time reaches t_conv
             if ~conv_marked(m) && ~isnan(t_conv_vec(m)) && t >= t_conv_vec(m)
-                unique_t = unique(df.Time);
-                [~, idx_conv] = min(abs(unique_t - t_conv_vec(m)));
-                t_actual_conv = unique_t(idx_conv);
-                conv_data = df(df.Time == t_actual_conv, :);
-                if ~isempty(conv_data)
-                    for i = 1:size(conv_data, 1)
-                        plot3(conv_data.X(i), conv_data.Y(i), conv_data.Z(i), 'd', ...
+                [~, idx_conv] = min(abs(pos_mats{m}.times - t_conv_vec(m)));
+                if idx_conv <= size(X_m, 2)
+                    for i = 1:N_m
+                        plot3(X_m(i, idx_conv), Y_m(i, idx_conv), Z_m(i, idx_conv), 'd', ...
                               'MarkerSize', 7, 'MarkerFaceColor', model_color, ...
                               'MarkerEdgeColor', 'k', 'LineWidth', 0.8, 'HandleVisibility', 'off');
                     end
