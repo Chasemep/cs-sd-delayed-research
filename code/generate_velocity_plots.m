@@ -51,11 +51,24 @@ for i = 1:length(model_keys)
     if isfield(model_data, key)
         df = model_data.(key);
         agents = unique(df.AgentID);
+        t_max = max(df.Time);
         for a = 1:length(agents)
             agent_df = df(df.AgentID == agents(a), :);
             v_mag = sqrt(agent_df.VX.^2 + agent_df.VY.^2 + agent_df.VZ.^2);
             plot(agent_df.Time, v_mag, 'Color', cfg.color, 'LineWidth', 1.2);
         end
+        
+        asymptotes = find_flock_asymptotes(df);
+        for f_idx = 1:length(asymptotes)
+            asym_val = asymptotes(f_idx);
+            if length(asymptotes) > 1
+                lbl = sprintf('Flock %d Asymptote (%.2f)', f_idx, asym_val);
+            else
+                lbl = sprintf('Limiting Velocity (%.2f)', asym_val);
+            end
+            plot([0, t_max], [asym_val, asym_val], ':', 'Color', cfg.color, 'LineWidth', 1.8, 'DisplayName', lbl);
+        end
+        legend('Location', 'best');
     end
     
     title(cfg.title, 'FontSize', 12, 'FontWeight', 'bold');
@@ -78,6 +91,7 @@ for i = 1:length(model_keys)
     if isfield(model_data, key)
         df = model_data.(key);
         agents = unique(df.AgentID);
+        t_max = max(df.Time);
         for a = 1:length(agents)
             agent_df = df(df.AgentID == agents(a), :);
             v_mag = sqrt(agent_df.VX.^2 + agent_df.VY.^2 + agent_df.VZ.^2);
@@ -86,6 +100,19 @@ for i = 1:length(model_keys)
         h_dummy = plot(NaN, NaN, 'Color', cfg.color, 'LineWidth', 2);
         legend_handles(end+1) = h_dummy; %#ok<AGROW>
         legend_labels{end+1} = cfg.title; %#ok<AGROW>
+        
+        asymptotes = find_flock_asymptotes(df);
+        for f_idx = 1:length(asymptotes)
+            asym_val = asymptotes(f_idx);
+            if length(asymptotes) > 1
+                lbl = sprintf('%s Flock %d (%.1f)', cfg.title, f_idx, asym_val);
+            else
+                lbl = sprintf('%s Asym (%.1f)', cfg.title, asym_val);
+            end
+            h_asym = plot([0, t_max], [asym_val, asym_val], ':', 'Color', cfg.color, 'LineWidth', 1.5);
+            legend_handles(end+1) = h_asym; %#ok<AGROW>
+            legend_labels{end+1} = lbl; %#ok<AGROW>
+        end
     end
 end
 
@@ -111,3 +138,33 @@ end
 
 close(fig);
 end
+
+function asymptotes = find_flock_asymptotes(df, tol)
+    if nargin < 2, tol = 2.0; end
+    t_max = max(df.Time);
+    final_df = df(df.Time == t_max, :);
+    v_mags = sqrt(final_df.VX.^2 + final_df.VY.^2 + final_df.VZ.^2);
+    v_sorted = sort(v_mags);
+    if isempty(v_sorted)
+        asymptotes = [];
+        return;
+    end
+    
+    clusters = {};
+    curr_c = v_sorted(1);
+    for i = 2:length(v_sorted)
+        if abs(v_sorted(i) - curr_c(end)) <= tol
+            curr_c(end+1) = v_sorted(i);
+        else
+            clusters{end+1} = curr_c;
+            curr_c = v_sorted(i);
+        end
+    end
+    clusters{end+1} = curr_c;
+    
+    asymptotes = zeros(1, length(clusters));
+    for k = 1:length(clusters)
+        asymptotes(k) = mean(clusters{k});
+    end
+end
+
