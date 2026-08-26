@@ -3,3 +3,5 @@ Documents/CuckerSmale_Original.pdf
 Documents/CuckerSmale_with_Delay.pdf
 Documents/paper1.pdf
 Documents/*.tex
+Documents/*.aux
+Documents/*.log

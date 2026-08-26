@@ -14,6 +14,10 @@ import os
 import sys
 from PIL import Image
 
+import os
+import sys
+from PIL import Image
+
 # --- Paths ---
 base_output = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 combined_dir = os.path.join(base_output, "ScenariosCombined")
@@ -27,16 +31,18 @@ def resize_to_height(img, height):
     new_w = int(img.width * ratio)
     return img.resize((new_w, height), Image.LANCZOS)
 
-def combine_scenario(i):
-    scenario_folder = os.path.join(base_output, f"Scenario{i}")
+def combine_scenario_folder(scenario_folder, out_name):
     traj_path = os.path.join(scenario_folder, "final_comparison_visual.png")
+    if not os.path.exists(traj_path):
+        traj_path = os.path.join(scenario_folder, "final_comparison_visual_clean.png")
+
     pca_path  = os.path.join(scenario_folder, "comparison_pca.png")
 
     if not os.path.exists(traj_path):
-        print(f"[SKIP] Scenario{i}: missing final_comparison_visual.png")
+        print(f"[SKIP] {out_name}: missing trajectory visual PNG")
         return
     if not os.path.exists(pca_path):
-        print(f"[SKIP] Scenario{i}: missing comparison_pca.png")
+        print(f"[SKIP] {out_name}: missing comparison_pca.png")
         return
 
     img_traj = Image.open(traj_path).convert("RGBA")
@@ -53,24 +59,28 @@ def combine_scenario(i):
     combined.paste(img_traj, (0, 0))
     combined.paste(img_pca,  (img_traj.width + PADDING, 0))
 
-    out_path = os.path.join(combined_dir, f"Scenario{i}.png")
+    out_path = os.path.join(combined_dir, f"{out_name}.png")
     combined.convert("RGB").save(out_path, "PNG")
-    print(f"[OK] Saved Scenario{i}.png  ({total_width}x{target_height} px)  ->  {out_path}")
+    print(f"[OK] Saved {out_name}.png  ({total_width}x{target_height} px)  ->  {out_path}")
 
 # Determine which scenarios to process
-if len(sys.argv) > 1:
-    indices = [int(a) for a in sys.argv[1:]]
-else:
-    # Auto-detect all ScenarioN folders
-    indices = sorted(
-        int(name.replace("Scenario", ""))
-        for name in os.listdir(base_output)
-        if name.startswith("Scenario") and name != "ScenariosCombined"
-        and os.path.isdir(os.path.join(base_output, name))
-        and name.replace("Scenario", "").isdigit()
-    )
+search_dirs = [base_output]
+paper_dir = os.path.join(base_output, "PaperScenarios")
+if os.path.exists(paper_dir):
+    search_dirs.append(paper_dir)
 
-for i in indices:
-    combine_scenario(i)
+for sdir in search_dirs:
+    if len(sys.argv) > 1:
+        indices = [int(a) for a in sys.argv[1:]]
+        for i in indices:
+            scen_path = os.path.join(sdir, f"Scenario{i}")
+            if os.path.exists(scen_path):
+                combine_scenario_folder(scen_path, f"Scenario{i}")
+    else:
+        for name in sorted(os.listdir(sdir)):
+            scen_path = os.path.join(sdir, name)
+            if name.startswith("Scenario") and os.path.isdir(scen_path):
+                combine_scenario_folder(scen_path, name)
 
 print(f"\nDone. Combined images saved to: {combined_dir}")
+
