@@ -92,6 +92,16 @@ if exist(python_vel_script, 'file')
     end
 end
 
+python_3d_clean_script = fullfile(script_dir, 'plot_clean_3d.py');
+if exist(python_3d_clean_script, 'file')
+    py_commands = {'python', 'python3', 'py'};
+    for i = 1:length(py_commands)
+        command = sprintf('%s "%s" "%s"', py_commands{i}, python_3d_clean_script, output_dir);
+        [status, ~] = system(command);
+        if status == 0, break; end
+    end
+end
+
 % 5. Generate Markdown Summary
 delay_vals = [tau(1), tau_factor];
 generate_simulation_markdown(output_dir, 'comparison', length(x0), h, alpha, beta, delay_vals, convergence_thresh);

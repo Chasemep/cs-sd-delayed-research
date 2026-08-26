@@ -144,6 +144,9 @@ function generate_simulation_markdown(output_dir, model_type, num_agents, h, alp
     if ~isempty(traj_file)
         fprintf(fid, '![Simulation Trajectory](%s)\n', traj_file);
     end
+    if strcmp(model_type, 'comparison') && exist(fullfile(output_dir, 'final_comparison_visual_clean.png'), 'file')
+        fprintf(fid, '![3D Trajectory (Clean)](final_comparison_visual_clean.png)\n');
+    end
     
     fclose(fid);
 end

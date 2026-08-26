@@ -182,6 +182,12 @@ try
     % Save final frame as image (using modern exportgraphics for higher quality)
     exportgraphics(fig, fullfile(output_dir, 'final_comparison_visual.png'), 'Resolution', 300);
     fprintf('Final comparison frame saved to: %s\n', fullfile(output_dir, 'final_comparison_visual.png'));
+    
+    % Save clean final frame (no title, no legend)
+    legend('off');
+    title('');
+    exportgraphics(fig, fullfile(output_dir, 'final_comparison_visual_clean.png'), 'Resolution', 300);
+    fprintf('Clean final comparison frame saved to: %s\n', fullfile(output_dir, 'final_comparison_visual_clean.png'));
 catch ME
     fprintf('Comparison video generation interrupted: %s\n', ME.message);
 end
