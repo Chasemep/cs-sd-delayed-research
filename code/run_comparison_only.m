@@ -66,12 +66,27 @@ if exist('generate_comparison_video.m', 'file')
     generate_comparison_video(output_dir);
 end
 
+if exist('generate_velocity_plots.m', 'file')
+    fprintf('--- Generating Velocity Convergence Grid Plot ---\n');
+    generate_velocity_plots(output_dir);
+end
+
 python_script = fullfile(script_dir, 'compare_pca.py');
 if exist(python_script, 'file')
     fprintf('--- Generating Comparison PCA Plot ---\n');
     py_commands = {'python', 'python3', 'py'};
     for i = 1:length(py_commands)
         command = sprintf('%s "%s" "%s"', py_commands{i}, python_script, output_dir);
+        [status, ~] = system(command);
+        if status == 0, break; end
+    end
+end
+
+python_vel_script = fullfile(script_dir, 'plot_velocity_grid.py');
+if exist(python_vel_script, 'file')
+    py_commands = {'python', 'python3', 'py'};
+    for i = 1:length(py_commands)
+        command = sprintf('%s "%s" "%s"', py_commands{i}, python_vel_script, output_dir);
         [status, ~] = system(command);
         if status == 0, break; end
     end

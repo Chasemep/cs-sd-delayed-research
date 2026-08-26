@@ -138,6 +138,9 @@ function generate_simulation_markdown(output_dir, model_type, num_agents, h, alp
 
     fprintf(fid, '### Visual Results\n');
     fprintf(fid, '![PCA Stability](%s)\n', pca_file);
+    if strcmp(model_type, 'comparison') && exist(fullfile(output_dir, 'velocity_convergence_grid.png'), 'file')
+        fprintf(fid, '![Velocity Convergence Grid](velocity_convergence_grid.png)\n');
+    end
     if ~isempty(traj_file)
         fprintf(fid, '![Simulation Trajectory](%s)\n', traj_file);
     end
